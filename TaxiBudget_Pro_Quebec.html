@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111318">
+<title>TaxiBudget Pro Québec</title>
+<style>
+:root{--bg:#0e1014;--card:#181b22;--card2:#20242c;--text:#f4f5f7;--muted:#9da4b0;--green:#49d17d;--red:#ff5c68;--orange:#ffb648;--blue:#55a9ff;--border:#2c313b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.wrap{max-width:720px;margin:auto;padding:18px 14px 90px}.head{padding:8px 4px 16px}.head h1{margin:0;font-size:27px}.head p{margin:5px 0;color:var(--muted)}
+nav{position:sticky;top:0;z-index:5;background:rgba(14,16,20,.94);backdrop-filter:blur(12px);display:flex;gap:7px;overflow:auto;padding:7px 0 10px}
+nav button{white-space:nowrap;border:1px solid var(--border);background:var(--card);color:var(--text);padding:10px 13px;border-radius:12px;font-weight:600}
+nav button.active{background:var(--green);color:#08130d;border-color:var(--green)}
+.section{display:none}.section.active{display:block}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:17px;padding:14px;margin:10px 0}.stat{min-height:95px}.stat .label{font-size:12px;color:var(--muted)}.stat .value{font-size:22px;font-weight:800;margin-top:7px}
+h2{font-size:19px;margin:20px 2px 10px}h3{margin:0 0 10px}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 5px}input,select,textarea{width:100%;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:11px;padding:12px;font-size:15px}textarea{min-height:70px}
+button.primary,button.danger,button.secondary{border:0;border-radius:11px;padding:12px 14px;font-weight:700;margin-top:10px}button.primary{background:var(--green);color:#07120b}button.secondary{background:var(--card2);color:var(--text);border:1px solid var(--border)}button.danger{background:#3a1d21;color:#ff9aa1;border:1px solid #663038}
+.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}.money{font-variant-numeric:tabular-nums}.item{background:var(--card2);border-radius:13px;padding:12px;margin:8px 0;border:1px solid var(--border)}.itemtop{display:flex;justify-content:space-between;gap:10px}.pill{font-size:11px;padding:4px 7px;border-radius:20px;background:#2b303a;color:#cbd0d8}.green{color:var(--green)}.red{color:var(--red)}.orange{color:var(--orange)}.blue{color:var(--blue)}.small{font-size:12px;color:var(--muted)}.empty{color:var(--muted);text-align:center;padding:22px}
+canvas{width:100%;height:220px;background:var(--card2);border-radius:14px}
+hr{border:0;border-top:1px solid var(--border);margin:14px 0}
+@media(max-width:500px){.grid3{grid-template-columns:1fr 1fr}.head h1{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="head"><h1>🚕 TaxiBudget Pro Québec</h1><p>Suivi de l’achat, des dettes et des dépenses du taxi</p></header>
+<nav>
+<button class="active" data-tab="dash">Tableau</button>
+<button data-tab="add">+ Dépense</button>
+<button data-tab="debts">Dettes</button>
+<button data-tab="history">Historique</button>
+<button data-tab="settings">Données</button>
+</nav>
+
+<section id="dash" class="section active">
+<div class="grid">
+<div class="card stat"><div class="label">Dépenses ce mois</div><div id="mMonth" class="value">$0.00</div></div>
+<div class="card stat"><div class="label">Dépenses depuis le début</div><div id="mAll" class="value">$0.00</div></div>
+<div class="card stat"><div class="label">Dette totale</div><div id="mDebt" class="value red">$0.00</div></div>
+<div class="card stat"><div class="label">Intérêts estimés</div><div id="mInterest" class="value orange">$0.00</div></div>
+</div>
+<div class="card">
+<h3>Répartition des dépenses</h3><canvas id="chart" width="680" height="220"></canvas>
+</div>
+<div class="card"><h3>Dernières dépenses</h3><div id="recent"></div></div>
+</section>
+
+<section id="add" class="section">
+<h2>Ajouter une dépense</h2>
+<div class="card">
+<label>Date</label><input id="dDate" type="date">
+<label>Catégorie</label><select id="dCat"></select>
+<label>Montant ($)</label><input id="dAmount" type="number" step="0.01" inputmode="decimal" placeholder="0.00">
+<label>Mode de paiement</label><select id="dPay">
+<option value="credit0">Crédit 0 %</option>
+<option value="loc">Marge de crédit — 8,94 %</option>
+<option value="visa">Carte Visa</option>
+<option value="cheque">Compte chèque</option>
+<option value="cash">Comptant</option>
+</select>
+<label>Description</label><input id="dDesc" placeholder="Ex. chargeur, essence, réparation...">
+<button class="primary" style="width:100%" onclick="addExpense()">Ajouter la dépense</button>
+</div>
+<h2>Catégories rapides</h2>
+<div id="quickCats" class="grid"></div>
+</section>
+
+<section id="debts" class="section">
+<h2>Financement / dettes</h2>
+<div class="card">
+<h3>🚕 Achat du taxi</h3>
+<div class="grid">
+<div><label>Prix avant taxes</label><input id="carPrice" type="number" step=".01"></div>
+<div><label>Taxes</label><input id="carTax" type="number" step=".01"></div>
+<div><label>Acompte</label><input id="carDown" type="number" step=".01"></div>
+<div><label>Solde financé</label><input id="carFin" type="number" step=".01"></div>
+</div>
+<label>Note</label><input id="carNote" placeholder="Ex. Toyota Venza 2022">
+<button class="primary" onclick="saveCar()">Enregistrer l'achat</button>
+</div>
+
+<div class="card">
+<h3>💳 Crédit à 0 %</h3>
+<label>Solde actuel ($)</label><input id="zeroBal" type="number" step=".01">
+<label>Paiement mensuel ($)</label><input id="zeroPay" type="number" step=".01">
+<button class="primary" onclick="saveDebt('zero')">Enregistrer</button>
+</div>
+
+<div class="card">
+<h3>🏦 Marge de crédit</h3>
+<label>Solde actuel ($)</label><input id="locBal" type="number" step=".01">
+<label>Taux annuel (%)</label><input id="locRate" type="number" step=".01" value="8.94">
+<label>Paiement mensuel ($)</label><input id="locPay" type="number" step=".01">
+<button class="primary" onclick="saveDebt('loc')">Enregistrer</button>
+</div>
+
+<div class="card">
+<h3>💳 Carte Visa</h3>
+<label>Solde actuel ($)</label><input id="visaBal" type="number" step=".01">
+<label>Taux annuel (%)</label><input id="visaRate" type="number" step=".01" value="19.99">
+<label>Paiement mensuel ($)</label><input id="visaPay" type="number" step=".01">
+<button class="primary" onclick="saveDebt('visa')">Enregistrer</button>
+</div>
+<div id="debtSummary"></div>
+</section>
+
+<section id="history" class="section">
+<h2>Historique</h2>
+<div class="card">
+<div class="row"><input id="search" placeholder="Rechercher..."><select id="filterPay"><option value="">Tous les paiements</option><option value="credit0">Crédit 0 %</option><option value="loc">Marge 8,94 %</option><option value="visa">Visa</option><option value="cheque">Chèque</option><option value="cash">Comptant</option></select></div>
+<div class="row"><input id="fromDate" type="date"><input id="toDate" type="date"></div>
+</div>
+<div id="historyList"></div>
+</section>
+
+<section id="settings" class="section">
+<h2>Données</h2>
+<div class="card">
+<h3>💾 Sauvegarde</h3>
+<p class="small">Les données sont sauvegardées automatiquement sur cet appareil.</p>
+<button class="secondary" style="width:100%" onclick="exportData()">Exporter mes données</button>
+<button class="secondary" style="width:100%" onclick="document.getElementById('file').click()">Importer mes données</button>
+<input id="file" type="file" accept=".json" style="display:none" onchange="importData(event)">
+<button class="danger" style="width:100%" onclick="clearAll()">Effacer toutes les données</button>
+</div>
+<div class="card"><h3>À propos</h3><p class="small">TaxiBudget Pro Québec — outil personnel de suivi. Les calculs d'intérêts sont des estimations et ne remplacent pas les relevés de la banque ou de la carte.</p></div>
+</section>
+</div>
+
+<script>
+const CATS=[
+["⛽","Essence"],["🚗","Lavage"],["🔧","Entretien"],["🛞","Pneus"],["🛑","Freins"],["🔋","Batterie"],
+["🛢️","Huile"],["🧰","Réparation"],["📱","Téléphone"],["📡","Internet"],["🧭","GPS"],["📦","Amazon / gadgets"],
+["🔌","Chargeurs / câbles"],["🔋","Booster / accessoires"],["🧹","Produits nettoyage"],["🪑","Accessoires intérieur"],
+["🛡️","Assurance"],["🪪","Immatriculation"],["🔍","Inspection mécanique"],["🧾","Permis / frais taxi"],
+["🅿️","Stationnement"],["🛣️","Péages"],["💰","Redevances"],["🏠","Location"],["📋","Autres"]
+];
+const PAY={credit0:"Crédit 0 %",loc:"Marge 8,94 %",visa:"Carte Visa",cheque:"Compte chèque",cash:"Comptant"};
+let db=JSON.parse(localStorage.getItem("taxibudget_pro")||"null")||{expenses:[],debts:{zero:{balance:0,payment:0},loc:{balance:0,rate:8.94,payment:0},visa:{balance:0,rate:19.99,payment:0}},car:{price:0,tax:0,down:0,fin:0,note:""}};
+const money=n=>new Intl.NumberFormat("fr-CA",{style:"currency",currency:"CAD"}).format(Number(n)||0);
+const save=()=>{localStorage.setItem("taxibudget_pro",JSON.stringify(db));renderAll()};
+function today(){return new Date().toISOString().slice(0,10)}
+document.getElementById("dDate").value=today();
+document.getElementById("dCat").innerHTML=CATS.map(x=>`<option>${x[0]} ${x[1]}</option>`).join("");
+document.getElementById("quickCats").innerHTML=CATS.map(x=>`<button class="secondary" onclick="setCat('${x[0]} ${x[1]}')">${x[0]} ${x[1]}</button>`).join("");
+document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active");document.querySelectorAll(".section").forEach(x=>x.classList.remove("active"));document.getElementById(b.dataset.tab).classList.add("active");renderAll()});
+function setCat(v){document.getElementById("dCat").value=v;document.getElementById("dAmount").focus()}
+function addExpense(){
+let amount=+document.getElementById("dAmount").value;if(!(amount>0))return alert("Entre un montant.");
+db.expenses.push({id:Date.now(),date:document.getElementById("dDate").value||today(),cat:document.getElementById("dCat").value,pay:document.getElementById("dPay").value,amount,desc:document.getElementById("dDesc").value.trim()});
+document.getElementById("dAmount").value="";document.getElementById("dDesc").value="";save();alert("Dépense ajoutée.");
+}
+function saveDebt(k){db.debts[k].balance=+(document.getElementById(k==="zero"?"zeroBal":k+"Bal").value||0);db.debts[k].payment=+(document.getElementById(k==="zero"?"zeroPay":k+"Pay").value||0);if(k!=="zero")db.debts[k].rate=+(document.getElementById(k+"Rate").value||0);save();alert("Dette enregistrée.");}
+function saveCar(){db.car={price:+carPrice.value||0,tax:+carTax.value||0,down:+carDown.value||0,fin:+carFin.value||0,note:carNote.value};save();alert("Achat enregistré.");}
+function interest(){let total=0;["loc","visa"].forEach(k=>{let d=db.debts[k];total+=(d.balance||0)*(d.rate||0)/100/12});return total}
+function renderDash(){
+let now=new Date(), ym=now.toISOString().slice(0,7), all=db.expenses.reduce((s,e)=>s+e.amount,0), month=db.expenses.filter(e=>e.date.slice(0,7)===ym).reduce((s,e)=>s+e.amount,0);
+let debt=db.debts.zero.balance+db.debts.loc.balance+db.debts.visa.balance;
+mMonth.textContent=money(month);mAll.textContent=money(all);mDebt.textContent=money(debt);mInterest.textContent=money(interest());
+recent.innerHTML=db.expenses.slice().sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id).slice(0,7).map(expHTML).join("")||'<div class="empty">Aucune dépense.</div>'; drawChart();
+}
+function expHTML(e){return `<div class="item"><div class="itemtop"><b>${e.cat}</b><b class="money">${money(e.amount)}</b></div><div class="small">${e.date} · ${PAY[e.pay]}${e.desc?" · "+e.desc:""}</div><button class="danger" onclick="delExpense(${e.id})">Supprimer</button></div>`}
+function delExpense(id){if(confirm("Supprimer cette dépense ?")){db.expenses=db.expenses.filter(e=>e.id!==id);save()}}
+function renderHistory(){
+let q=(search.value||"").toLowerCase(),p=filterPay.value,f=fromDate.value,t=toDate.value;
+let a=db.expenses.filter(e=>(!q||(e.cat+" "+e.desc+" "+PAY[e.pay]).toLowerCase().includes(q))&&(!p||e.pay===p)&&(!f||e.date>=f)&&(!t||e.date<=t)).sort((a,b)=>b.date.localeCompare(a.date)||b.id-a.id);
+historyList.innerHTML=a.map(expHTML).join("")||'<div class="empty">Aucune dépense trouvée.</div>';
+}
+["search","filterPay","fromDate","toDate"].forEach(id=>document.getElementById(id).addEventListener("input",renderHistory));
+function renderDebts(){
+zeroBal.value=db.debts.zero.balance||"";zeroPay.value=db.debts.zero.payment||"";
+locBal.value=db.debts.loc.balance||"";locPay.value=db.debts.loc.payment||"";locRate.value=db.debts.loc.rate??8.94;
+visaBal.value=db.debts.visa.balance||"";visaPay.value=db.debts.visa.payment||"";visaRate.value=db.debts.visa.rate??19.99;
+carPrice.value=db.car.price||"";carTax.value=db.car.tax||"";carDown.value=db.car.down||"";carFin.value=db.car.fin||"";carNote.value=db.car.note||"";
+let rows=[["Crédit 0 %",db.debts.zero.balance,0],["Marge",db.debts.loc.balance,db.debts.loc.rate],["Visa",db.debts.visa.balance,db.debts.visa.rate]];
+debtSummary.innerHTML=rows.map(r=>`<div class="card"><div class="itemtop"><b>${r[0]}</b><b class="money">${money(r[1])}</b></div><div class="small">Taux : ${r[2]} % · Intérêt mensuel estimé : ${money(r[1]*r[2]/100/12)}</div></div>`).join("");
+}
+function drawChart(){
+let c=document.getElementById("chart"),x=c.getContext("2d"),w=c.width,h=c.height;x.clearRect(0,0,w,h);
+let vals=CATS.map(cat=>({name:cat[1],v:db.expenses.filter(e=>e.cat===cat[0]+" "+cat[1]).reduce((s,e)=>s+e.amount,0)})).filter(o=>o.v>0).sort((a,b)=>b.v-a.v).slice(0,8);
+let max=Math.max(1,...vals.map(o=>o.v));x.font="13px -apple-system";vals.forEach((o,i)=>{let y=18+i*25,bw=(w-190)*o.v/max;x.fillStyle="#49d17d";x.fillRect(150,y,bw,15);x.fillStyle="#d9dde5";x.fillText(o.name.slice(0,22),5,y+12);x.fillText(money(o.v),155+bw,y+12)});
+if(!vals.length){x.fillStyle="#9da4b0";x.fillText("Aucune dépense à afficher",20,30)}
+}
+function renderAll(){renderDash();renderDebts();renderHistory()}
+function exportData(){let blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="taxibudget-pro-sauvegarde.json";a.click();URL.revokeObjectURL(a.href)}
+function importData(ev){let file=ev.target.files[0];if(!file)return;let r=new FileReader();r.onload=()=>{try{let d=JSON.parse(r.result);if(!d.expenses||!d.debts)throw 0;db=d;save();alert("Importation réussie.")}catch(e){alert("Fichier invalide.")}};r.readAsText(file)}
+function clearAll(){if(confirm("ATTENTION : effacer toutes les données ?")){localStorage.removeItem("taxibudget_pro");location.reload()}}
+renderAll();
+</script>
+</body></html>
